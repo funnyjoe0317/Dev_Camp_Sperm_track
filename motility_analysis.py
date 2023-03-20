@@ -1,7 +1,9 @@
 import csv
 import numpy as np
 
-def analyze_motility(tracks):
+
+    # ------------ min_track_length -> 프레임 길이에 맞게 설정 해줘야 함----------------
+def analyze_motility(tracks,  min_track_length=20):
     motility_results = {}
     sperm_counts = {}
 
@@ -11,22 +13,29 @@ def analyze_motility(tracks):
     motility_data = calculate_motility(video_tracks)
     motility_results[video_name] = motility_data
     
-    # 고치기 전
-    # sperm_count = sum([len(track) for track in video_tracks.values()])
+    # # 고유한 트랙 ID 수를 세기
+    # sperm_count = len(set([track_id for track in video_tracks.values() for _, _, track_id in track]))
     # sperm_counts[video_name] = sperm_count
+    # 고유한 트랙 ID 수를 세기 전에 트랙 길이 필터링
+    filtered_tracks = {}
+    for frame, track_list in video_tracks.items():
+        for track in track_list:
+            x, y, track_id = track
+            if track_id not in filtered_tracks:
+                filtered_tracks[track_id] = []
+            filtered_tracks[track_id].append((x, y))
     
-    # 고유한 트랙 ID 수를 세기
-    sperm_count = len(set([track_id for track in video_tracks.values() for _, _, track_id in track]))
-    sperm_counts[video_name] = sperm_count
+    # 최소 프레임 길이를 만족하는 트랙만 남기기
+    long_tracks = {track_id: track for track_id, track in filtered_tracks.items() if len(track) >= min_track_length}
 
+    sperm_counts[video_name] = len(long_tracks)
+  
     return motility_results, sperm_counts
 
 
 def calculate_motility(video_tracks):
     progressive_threshold = 10
-    # progressive_threshold는 성장이라고 판단되는 최소 거리입니다.
     non_progressive_threshold = 5
-    # non_progressive_threshold는 성장이라고 판단되는 최소 거리입니다.
 
     total_sperms = sum([len(track) for track in video_tracks.values()])
     progressive_count = 0

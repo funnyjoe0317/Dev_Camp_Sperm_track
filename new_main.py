@@ -106,27 +106,32 @@ def detect_and_track_sperms(video_path, output_video_path):
     out.release()
     return tracks
 
-sperm = "600_sample"
-video_path = f'videos/{sperm}.mp4'
-output_video_path = f"videos/{sperm}_output1.mp4"
-tracks = detect_and_track_sperms(video_path, output_video_path)
+def main():
+    sperm = "600_sample"
+    # sperm = "21_sperm_sample"
+    video_path = f'videos/{sperm}.mp4'
+    output_video_path = f"videos/{sperm}_output1.mp4"
+    tracks = detect_and_track_sperms(video_path, output_video_path)
 
-with open("Detections_test_tracks.json", "w") as fp:
-    json.dump(tracks, fp)
+    with open("Detections_test_tracks.json", "w") as fp:
+        json.dump(tracks, fp)
 
-with open("Detections_test_tracks.json", "r") as fp:
-    tracks = json.load(fp)
+    with open("Detections_test_tracks.json", "r") as fp:
+        tracks = json.load(fp)
 
-motility_results, sperm_counts = analyze_motility(tracks)
+    motility_results, sperm_counts = analyze_motility(tracks)
 
-# Print the results
-print("Motility Results:")
-for video_name, motility_data in motility_results.items():
-    print(f"Video: {video_name}")
-    for category, value in motility_data.items():
-        print(f"{category}: {value}%")
-    print()
+    # Print the results
+    print("Motility Results:")
+    for video_name, motility_data in motility_results.items():
+        print(f"Video: {video_name}")
+        for category, value in motility_data.items():
+            print(f"{category}: {value}%")
+        print()
 
-print("Sperm Counts:")
-for video_name, count in sperm_counts.items():
-    print(f"Video: {video_name}, Count: {count}")
+    print("Sperm Counts:") 
+    for video_name, count in sperm_counts.items():
+        print(f"Video: {video_name}, Count: {count}")
+
+if __name__ == "__main__":
+    main()
