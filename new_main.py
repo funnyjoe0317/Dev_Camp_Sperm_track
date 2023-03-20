@@ -132,6 +132,11 @@ def main():
     print("Sperm Counts:") 
     for video_name, count in sperm_counts.items():
         print(f"Video: {video_name}, Count: {count}")
+        
+    # print("이동거리 :") 
+    # for video_name, count in sperm_counts.items():
+    #     print(f"Video: {video_name}, Count: {count}")
+    
 
 if __name__ == "__main__":
     main()
