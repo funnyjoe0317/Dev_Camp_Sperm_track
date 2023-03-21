@@ -2,7 +2,7 @@ import csv
 import numpy as np
 
 
-    # ------------ min_track_length -> 프레임 길이에 맞게 설정 해줘야 함----------------
+# ------------ min_track_length -> 프레임 길이에 맞게 설정 해줘야 함----------------
 def analyze_motility(tracks,  min_track_length=20):
     motility_results = {}
     sperm_counts = {}
@@ -33,37 +33,6 @@ def analyze_motility(tracks,  min_track_length=20):
     return motility_results, sperm_counts
 
 
-# def calculate_motility(video_tracks):
-#     progressive_threshold = 10
-#     non_progressive_threshold = 5
-
-#     total_sperms = sum([len(track) for track in video_tracks.values()])
-#     progressive_count = 0
-#     non_progressive_count = 0
-#     immotile_count = 0
-
-#     for track in video_tracks.values():
-#         for i in range(len(track) - 1):
-#             current_position = np.array(track[i])
-#             next_position = np.array(track[i + 1])
-#             distance = np.linalg.norm(next_position - current_position)
-
-#             if distance >= progressive_threshold:
-#                 progressive_count += 1
-#                 break
-#             elif distance >= non_progressive_threshold:
-#                 non_progressive_count += 1
-#                 break
-#         else:
-#             immotile_count += 1
-
-#     motility_data = {
-#         "progressive": (progressive_count / total_sperms) * 100 if total_sperms > 0 else 0,
-#         "non_progressive": (non_progressive_count / total_sperms) * 100 if total_sperms > 0 else 0,
-#         "immotile": (immotile_count / total_sperms) * 100 if total_sperms > 0 else 0
-#     }
-
-#     return motility_data
 def calculate_motility(video_tracks):
     progressive_threshold = 10
     non_progressive_threshold = 5
