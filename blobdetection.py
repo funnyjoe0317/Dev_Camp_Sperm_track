@@ -1,80 +1,67 @@
 import cv2
-import numpy as np
-
-
-def preprocess_video_frame(frame, target_size, rotate_code=None):
-    if rotate_code is not None:
-        frame = cv2.rotate(frame, rotate_code)
-    
-    height, width, _ = frame.shape
-    
-    cell_height = height // 3
-    cell_width = width // 3
-    x1, y1 = cell_width, cell_height
-    x2 = x1 + cell_width
-    y2 = y1 + cell_height
-    
-    # Crop the center of the frame
-    frame = frame[y1:y2, x1:x2]
-    
-    cropped_height, cropped_width, _ = frame.shape
-    
-    if cropped_height != target_size[1] or cropped_width != target_size[0]:
-        frame = cv2.resize(frame, target_size, interpolation=cv2.INTER_AREA)
-        
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    return gray    
 
 def process_video(video_path, output_path):
     print("Opening video file...")
     cap = cv2.VideoCapture(video_path)
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     frame_skip = fps // 15
-    
-    # 영상 출력관련 부분 ---------------
-    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (frame_width, frame_height))
-    # ---------------
 
-    detector_params = cv2.SimpleBlobDetector_Params()
-    # 필요한 경우 detector_params를 조정하세요.
-    detector = cv2.SimpleBlobDetector_create(detector_params)
+    target_width, target_height = 640, 480
+    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (target_width, target_height))
+
+    # Blob detector parameters
+    params = cv2.SimpleBlobDetector_Params()
+    params.filterByArea = True
+    params.minArea = 5
+    params.filterByCircularity = True
+    params.minCircularity = 0.5
+    params.filterByConvexity = True
+    params.minConvexity = 0.5
+    params.filterByInertia = True
+    params.minInertiaRatio = 0.5
+
+    detector = cv2.SimpleBlobDetector_create(params)
 
     moving_objects = []
     total_objects = []
-    
+
     print("Processing frames...")
     ret, prev_frame = cap.read()
+    prev_frame = cv2.resize(prev_frame, (target_width, target_height))
     prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
     prev_keypoints = detector.detect(prev_gray)
     total_objects.extend(prev_keypoints)
-
     frame_count = 1
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
         if frame_count % frame_skip == 0:
+            frame = cv2.resize(frame, (target_width, target_height))
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            keypoints = detector.detect(gray)
+
+            # 9분할 처리 및 blob detection
+            height, width = gray.shape
+            roi_height, roi_width = height // 3, width // 3
+
+            keypoints = []
+            for i in range(3):
+                for j in range(3):
+                    roi = gray[i * roi_height:(i + 1) * roi_height, j * roi_width:(j + 1) * roi_width]
+                    roi_keypoints = detector.detect(roi)
+
+                    for kp in roi_keypoints:
+                        kp.pt = (kp.pt[0] + j * roi_width, kp.pt[1] + i * roi_height)
+                    keypoints.extend(roi_keypoints)
+
+            moving_objects.extend([kp for kp in keypoints if not any([prev_kp.pt[0] - 5 <= kp.pt[0] <= prev_kp.pt[0] + 5 and prev_kp.pt[1] - 5 <= kp.pt[1] <= prev_kp.pt[1] + 5 for prev_kp in prev_keypoints])])
             total_objects.extend(keypoints)
-
-            for kp1 in prev_keypoints:
-                for kp2 in keypoints:
-                    if cv2.norm(kp1.pt, kp2.pt) <= 5:  # 임계값 설정
-                        moving_objects.append(kp2)
-                        break
-
-            prev_keypoints = keypoints
             
-            # 바운딩 박스 그리기
             for kp in keypoints:
                 x, y = int(kp.pt[0]), int(kp.pt[1])
                 size = int(kp.size)
                 cv2.rectangle(frame, (x - size, y - size), (x + size, y + size), (0, 255, 0), 2)
-                
+            prev_keypoints = keypoints
         out.write(frame)
         frame_count += 1
 
@@ -83,11 +70,11 @@ def process_video(video_path, output_path):
 
     num_moving_objects = len(moving_objects)
     num_total_objects = len(total_objects)
+    print("Moving objects: ", num_moving_objects)
+    print("Total objects: ", num_total_objects)
 
-    # return num_moving_objects, num_total_objects
-    return print("Moving objects: ", num_moving_objects, "Total objects: ", num_total_objects)
+    return num_moving_objects, num_total_objects
 
-if __name__ == "__main__":
-    video_path = 'videos/1.mp4'
-    output_path = 'videos/1_output.mp4'
-    process_video(video_path, output_path)
+video_path = 'videos/1.mp4'
+output_path = 'videos/video.mp4'
+moving_objects, total_objects = process_video(video_path, output_path)
