@@ -14,12 +14,6 @@ def process_video(video_path, output_path):
     # simpleblobdetector의 매개변수를 저장하는 객체
     params.filterByArea = True
     params.minArea = 10
-    # params.filterByCircularity = True
-    # params.minCircularity = 0.5
-    # params.filterByConvexity = True
-    # params.minConvexity = 0.5
-    # params.filterByInertia = True
-    # params.minInertiaRatio = 0.5
 
     detector = cv2.SimpleBlobDetector_create(params)
 

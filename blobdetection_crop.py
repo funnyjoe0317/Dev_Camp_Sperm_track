@@ -63,10 +63,8 @@ def process_video(video_path, output_path):
             now_frame_gray, now_frame  = preprocess_frame(now_frame_raw, target_width, target_height)
 
             now_keypoints = detector.detect(now_frame_gray)
-            # print(f' 이것이 키 포인트 {now_keypoints} ')
             moving_objects.extend([kp for kp in now_keypoints if not any([abs(prev_kp.pt[0] - kp.pt[0]) <= 5 and abs(prev_kp.pt[1] - kp.pt[1]) <= 5 for prev_kp in prev_keypoints])])
             total_objects.extend(now_keypoints)
-            # print(total_objects)
             
             for kp in now_keypoints:
                 x, y = int(kp.pt[0]), int(kp.pt[1])
@@ -87,8 +85,10 @@ def process_video(video_path, output_path):
 
     num_moving_objects = len(moving_objects)
     num_total_objects = len(total_objects)
-    print("Moving objects: ", num_moving_objects)
-    print("Total objects: ", num_total_objects)
+    avg_moving_objects = num_moving_objects / frame_count
+    avg_total_objects = num_total_objects / frame_count    # 계속해서 갱신되는것인가 아니면 계속해서 추가되는 것인가
+    print("Moving objects: ", avg_moving_objects)
+    print("Total objects: ", avg_total_objects)
 
     return num_moving_objects, num_total_objects
 
