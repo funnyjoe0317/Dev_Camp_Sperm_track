@@ -30,7 +30,8 @@ def process_video(video_path, output_path):
     ret, prev_frame = cap.read()
     prev_frame = cv2.resize(prev_frame, (target_width, target_height))
     prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
-    prev_keypoints = detector.detect(prev_gray)
+    equalized_gray = cv2.equalizeHist(prev_gray)
+    prev_keypoints = detector.detect(equalized_gray)
     # 그레이스케일 이미지에서 블롭(객체)를 검출합니다. 검출된 블롭의 정보는 prev_keypoints에 저장됩니다.
     total_objects.extend(prev_keypoints)
     # 검출된 블롭들을 total_objects 리스트에 추가합니다. 이렇게 하면 처리 과정에서 발견된 모든 블롭들을 한 곳에 모아 추적할 수 있습니다.
@@ -90,6 +91,6 @@ def process_video(video_path, output_path):
 
     return num_moving_objects, num_total_objects
 
-video_path = 'videos/7.mp4'
-output_path = 'videos/7_video.mp4'
+video_path = 'videos/1.mp4'
+output_path = 'videos/1_video.mp4'
 moving_objects, total_objects = process_video(video_path, output_path)
