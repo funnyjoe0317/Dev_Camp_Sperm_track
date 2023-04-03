@@ -22,7 +22,10 @@ def process_frame(frame, detector, prev_keypoints, moving_objects, total_objects
     height, width = frame.shape[:2]
     roi_height, roi_width = height // 3, width // 3
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    if len(frame.shape) == 3:  # BGR 이미지일 경우
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    else:  # grayscale 이미지일 경우
+        gray = frame
 
     keypoints = detect_blobs(gray, detector, roi_width, roi_height)
 
@@ -54,8 +57,8 @@ def process_video(video_path, output_path):
 
     moving_objects = []
     total_objects = []
-    total_objects_per_frame = []
-    moving_objects_per_frame = []
+    total_objects_per_frame = 0
+    moving_objects_per_frame = 0
 
     print("Processing frames...")
     ret, prev_frame = cap.read()
@@ -71,14 +74,13 @@ def process_video(video_path, output_path):
             break
         if frame_count % frame_skip == 0:
             frame = cv2.resize(frame, (target_width, target_height))
-            keypoints = process_frame(frame, detector, prev_keypoints, moving_objects, total_objects)
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            equalized_gray = cv2.equalizeHist(gray)
+            blurred_gray = cv2.GaussianBlur(equalized_gray, (5, 5), 0)
+            keypoints = process_frame(blurred_gray, detector, prev_keypoints, moving_objects, total_objects)
 
-            num_moving_objects = len(moving_objects)
-            num_total_objects = len(total_objects)
-            print("Moving objects: ", num_moving_objects)
-            print("Total objects: ", num_total_objects)
-            total_objects_per_frame.append(num_total_objects)
-            moving_objects_per_frame.append(num_moving_objects)
+            total_objects_per_frame += len(keypoints)
+            moving_objects_per_frame += len(moving_objects)
 
             for kp in keypoints:
                 x, y = int(kp.pt[0]), int(kp.pt[1])
@@ -93,25 +95,20 @@ def process_video(video_path, output_path):
     cap.release()
     out.release()
 
-    num_moving_objects = len(moving_objects)
-    num_total_objects = len(total_objects)
-    # print("Moving objects: ", num_moving_objects)
-    # print("Total objects: ", num_total_objects)
-    total_objects_per_frame.append(num_total_objects)
-    moving_objects_per_frame.append(num_moving_objects)
-
-    avg_total_objects_per_frame = sum(total_objects_per_frame) / len(total_objects_per_frame)
-    avg_moving_objects_per_frame = sum(moving_objects_per_frame) / len(moving_objects_per_frame)
-
-    # print("Average total objects per frame: ", avg_total_objects_per_frame)
-    # print("Average moving objects per frame: ", avg_moving_objects_per_frame)
+    # 결과를 구하는 부분을 수정합니다.
+    num_moving_objects = moving_objects_per_frame
+    num_total_objects = total_objects_per_frame
+    avg_total_objects_per_frame = num_total_objects / (frame_count - 1)
+    avg_moving_objects_per_frame = num_moving_objects / (frame_count - 1)
 
     return num_moving_objects, num_total_objects, avg_total_objects_per_frame, avg_moving_objects_per_frame
 
-video_path = 'videos/1.mp4'
-output_path = 'videos/1_video.mp4'
-result = process_video(video_path, output_path)
 
+
+# 이 부분은 기존 코드와 동일합니다.
+video_path = 'videos/1.mp4'
+output_path = 'videos/1_video_plz.mp4'
+result = process_video(video_path, output_path)
 print("Moving objects: ", result[0])
 print("Total objects: ", result[1])
 print("Average total objects per frame: ", result[2])
