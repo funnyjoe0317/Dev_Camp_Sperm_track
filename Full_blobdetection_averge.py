@@ -1,5 +1,5 @@
 import cv2
-
+# 현재 잡히는 객체의 정확도가 낮음/ 확인완료 있어야돼
 
 def detect_blobs(frame, detector, roi_width, roi_height):
     keypoints = []
@@ -35,7 +35,6 @@ def process_frame(frame, detector, prev_keypoints, moving_objects, total_objects
         cv2.rectangle(frame, (x - size, y - size), (x + size, y + size), (0, 255, 0), 2)
 
     return keypoints
-
 
 def process_video(video_path, output_path):
     print("Opening video file...")

@@ -1,13 +1,13 @@
 import cv2
+import numpy as np
 
 
 def detect_blobs(frame, detector, roi_width, roi_height):
     keypoints = []
 
-    height, width = frame.shape
-    height, width = frame.shape
-    center_roi = frame[height//3:2*height//3, width//3:2*width//3]
-    roi_keypoints = detector.detect(center_roi)
+    height, width = frame.shape[:2]
+    # center_roi = frame[height//3:2*height//3, width//3:2*width//3]
+    roi_keypoints = detector.detect(frame)
 
     for kp in roi_keypoints:
         kp.pt = (kp.pt[0] + width//3, kp.pt[1] + height//3)
@@ -17,30 +17,45 @@ def detect_blobs(frame, detector, roi_width, roi_height):
     return keypoints
 
 
-def process_frame(frame, detector, prev_keypoints, moving_objects, total_objects):
+def process_frame(frame, detector, prev_frame=None):
     height, width = frame.shape[:2]
-    roi_height, roi_width = height // 3, width // 3
+    
+    if len(frame.shape) == 3:  # If frame is not grayscale
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    else:  # If frame is already grayscale
+        gray = frame
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    keypoints = detect_blobs(gray, detector, width, height)
 
-    keypoints = detect_blobs(gray, detector, roi_width, roi_height)
+    moving_objs = 0
+    if prev_frame is not None:
+        # Compute difference between current and previous frame
+        prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+        diff = cv2.absdiff(gray, prev_gray)
 
-    moving_objects.extend([kp for kp in keypoints if not any([prev_kp.pt[0] - 3 <= kp.pt[0] <= prev_kp.pt[0] + 3 and prev_kp.pt[1] - 3 <= kp.pt[1] <= prev_kp.pt[1] + 3 for prev_kp in prev_keypoints])])
-    total_objects.extend(keypoints)
+        # Apply threshold to create binary image
+        threshold = 25
+        _, thresh = cv2.threshold(diff, threshold, 255, cv2.THRESH_BINARY)
 
-    for kp in keypoints:
-        x, y = int(kp.pt[0]), int(kp.pt[1])
-        size = int(kp.size)
-        cv2.rectangle(frame, (x - size, y - size), (x + size, y + size), (0, 255, 0), 2)
+        # Compute contours to detect moving objects
+        try:
+            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        except:
+            _, contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-    return keypoints
+        for contour in contours:
+            # Only consider contours with minimum area
+            if cv2.contourArea(contour) > 50:
+                moving_objs += 1
+
+    return keypoints, moving_objs
 
 
 def process_video(video_path, output_path):
     print("Opening video file...")
     cap = cv2.VideoCapture(video_path)
     fps = int(cap.get(cv2.CAP_PROP_FPS))
-    frame_skip = fps // 15
+    frame_skip = 5
 
     target_width, target_height = 640, 480
     out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (target_width, target_height))
@@ -52,67 +67,43 @@ def process_video(video_path, output_path):
 
     detector = cv2.SimpleBlobDetector_create(params)
 
-    moving_objects = []
-    total_objects = []
-    total_objects_per_frame = []
-    moving_objects_per_frame = []
-
     print("Processing frames...")
-    ret, prev_frame = cap.read()
-    prev_frame = cv2.resize(prev_frame, (target_width, target_height))
-    prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
-    equalized_gray = cv2.equalizeHist(prev_gray)
-    prev_keypoints = detector.detect(equalized_gray)
-    total_objects.extend(prev_keypoints)
-    frame_count = 1
+    frame_count = 0
+    prev_frame = None
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
+
+        # Get the central part of the frame
+        height, width = frame.shape[:2]
+        center_frame = frame[height//3:2*height//3, width//3:2*width//3]
+
         if frame_count % frame_skip == 0:
-            frame = cv2.resize(frame, (target_width, target_height))
-            keypoints = process_frame(frame, detector, prev_keypoints, moving_objects, total_objects)
+            # Process the frame and get the keypoints and moving objects count
+            resized_frame = cv2.resize(center_frame, (target_width, target_height))
+            gray = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2GRAY) # Convert frame to grayscale
+            keypoints, moving_objs = process_frame(gray, detector, prev_frame)
 
-            num_moving_objects = len(moving_objects)
-            num_total_objects = len(total_objects)
-            print("Moving objects: ", num_moving_objects)
-            print("Total objects: ", num_total_objects)
-            total_objects_per_frame.append(num_total_objects)
-            moving_objects_per_frame.append(num_moving_objects)
-
+            # Draw the detected keypoints
             for kp in keypoints:
                 x, y = int(kp.pt[0]), int(kp.pt[1])
                 size = int(kp.size)
-                cv2.rectangle(frame, (x - size, y - size), (x + size, y + size), (0, 255, 0), 2)
+                cv2.rectangle(resized_frame, (x - size, y - size), (x + size, y + size), (0, 255, 0), 2)
 
-            prev_keypoints = keypoints
+            # Write the processed frame to the output video
+            out.write(resized_frame)
 
-        out.write(frame)
+            # Print keypoints and moving objects count
+            print(f"Frame {frame_count}: Keypoints={len(keypoints)}, Moving objects={moving_objs}")
+
+        prev_frame = gray
         frame_count += 1
 
     cap.release()
     out.release()
 
-    num_moving_objects = len(moving_objects)
-    num_total_objects = len(total_objects)
-    # print("Moving objects: ", num_moving_objects)
-    # print("Total objects: ", num_total_objects)
-    total_objects_per_frame.append(num_total_objects)
-    moving_objects_per_frame.append(num_moving_objects)
-
-    avg_total_objects_per_frame = sum(total_objects_per_frame) / len(total_objects_per_frame)
-    avg_moving_objects_per_frame = sum(moving_objects_per_frame) / len(moving_objects_per_frame)
-
-    # print("Average total objects per frame: ", avg_total_objects_per_frame)
-    # print("Average moving objects per frame: ", avg_moving_objects_per_frame)
-
-    return num_moving_objects, num_total_objects, avg_total_objects_per_frame, avg_moving_objects_per_frame
 
 video_path = 'videos/1.mp4'
 output_path = 'videos/1_video_crop.mp4'
-result = process_video(video_path, output_path)
-
-print("Moving objects: ", result[0])
-print("Total objects: ", result[1])
-print("Average total objects per frame: ", result[2])
-print("Average moving objects per frame: ", result[3])
+process_video(video_path, output_path)
