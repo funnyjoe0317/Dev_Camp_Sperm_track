@@ -10,16 +10,9 @@ def preprocess_frame(frame, target_width, target_height):
 
     center_roi = frame[height//3:2*height//3, width//3:2*width//3]
 
-    # center_gray = cv2.cvtColor(center_roi, cv2.COLOR_BGR2GRAY)
-    
-    # resized_gray = cv2.resize(center_gray, (target_width, target_height))
-    resized_gray = cv2.resize(center_roi, (target_width, target_height))
-    # center_color = center_roi
+    resized_color = cv2.resize(center_roi, (target_width, target_height))
 
-    # equalized_gray = cv2.equalizeHist(resized_gray)
-    
-    adjusted_gray = adjust_brightness(resized_gray, alpha=2, beta=3)
-    return adjusted_gray
+    return cv2.cvtColor(resized_color, cv2.COLOR_BGR2RGB)
 
 def is_moving(kp, prev_keypoints, threshold=5):
     for prev_kp in prev_keypoints:
@@ -45,12 +38,6 @@ def process_video(video_path, output_path, min_radius, max_radius):
     
     # 여기서 아웃풋 영상의 컬러값을 항상 바꿔주자!!!
     out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (target_width, target_height), isColor=True)
-
-    if not out.isOpened():
-        print("Error opening the output video file")
-        exit(1)
-    else:
-        print("Output video file opened successfully")
 
     params = cv2.SimpleBlobDetector_Params()
     params.filterByArea = True
@@ -118,8 +105,6 @@ def process_video(video_path, output_path, min_radius, max_radius):
 
     cap.release()
     out.release()
-    cv2.imshow('Processed Frame', cv2.cvtColor(now_frame_gray, cv2.COLOR_GRAY2BGR))
-    cv2.imshow('Processed Frame', cv2.cvtColor(now_frame_gray, cv2.COLOR_GRAY2BGR))
 
 
 
