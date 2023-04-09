@@ -8,21 +8,13 @@ def adjust_brightness(img, alpha=1.7, beta=0):
 def preprocess_frame(frame, target_width, target_height):
     height, width = frame.shape[:2]
 
-    # center_roi = frame[height//3:2*height//3, width//3:2*width//3]
-    
-    # 수정 중
-    center_y, center_x = height // 2, width // 2
-    half_width, half_height = target_width // 2, target_height // 2
-    center_roi = frame[center_y - half_height:center_y + half_height, center_x - half_width:center_x + half_width]
+    center_roi = frame[height//3:2*height//3, width//3:2*width//3]
 
-    
     center_gray = cv2.cvtColor(center_roi, cv2.COLOR_BGR2GRAY)
     
+    resized_gray = cv2.resize(center_gray, (target_width, target_height))
     
-    # resized_gray = cv2.resize(center_gray, (target_width, target_height))
-    
-    # equalized_gray = cv2.equalizeHist(resized_gray)
-    equalized_gray = cv2.equalizeHist(center_gray)
+    equalized_gray = cv2.equalizeHist(resized_gray)
     
     adjusted_gray = adjust_brightness(equalized_gray, alpha=2, beta=3)
     return adjusted_gray
@@ -37,7 +29,7 @@ def is_moving(kp, prev_keypoints, threshold=5):
     return True
 
 def process_video(video_path, output_path, min_radius, max_radius):
-    print("Opening video file...")
+    # print("Opening video file...")
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
@@ -47,8 +39,7 @@ def process_video(video_path, output_path, min_radius, max_radius):
         print("Input video file opened successfully")
 
     fps = int(cap.get(cv2.CAP_PROP_FPS))
-    # target_width, target_height = 640, 480
-    target_width, target_height = 480, 480
+    target_width, target_height = 640, 480
     out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (target_width, target_height), isColor=False)
 
     if not out.isOpened():
@@ -59,7 +50,8 @@ def process_video(video_path, output_path, min_radius, max_radius):
 
     params = cv2.SimpleBlobDetector_Params()
     params.filterByArea = True
-    params.minArea = np.pi * min_radius**2
+    params.minArea = np.pi * min_radius**2 
+    # 면적 최소, 최대
     params.maxArea = np.pi * max_radius**2
     params.filterByCircularity = True
     params.minCircularity = 0.5
@@ -73,7 +65,7 @@ def process_video(video_path, output_path, min_radius, max_radius):
     moving_objects = []
     total_objects = []
 
-    print("Processing frames...")
+    # print("Processing frames...")
     ret, prev_frame_raw = cap.read()
     if not ret:
         print("Error reading the first frame")
@@ -96,13 +88,20 @@ def process_video(video_path, output_path, min_radius, max_radius):
 
         moving_objects.extend(moving_kps)
         total_objects.extend(now_keypoints)
-        print(f'움직이는 객체: {len(moving_objects)}')
-        print(f'전체 객체: {len(total_objects)}')
+        # print(f'움직이는 객체: {len(moving_objects)}')
+        # print(f'전체 객체: {len(total_objects)}')
 
+        # for kp in now_keypoints:
+        #     x, y = int(kp.pt[0]), int(kp.pt[1])
+        #     size = int(kp.size)
+        #     cv2.rectangle(now_frame_gray, (x - size, y - size), (x + size, y + size), (0, 255, 0), 2)
         for kp in now_keypoints:
             x, y = int(kp.pt[0]), int(kp.pt[1])
-            size = int(kp.size)
-            cv2.rectangle(now_frame_gray, (x - size, y - size), (x + size, y + size), (0, 255, 0), 2)
+            radius = kp.size / 2
+            
+            if min_radius <= radius <= max_radius:
+                size = int(kp.size)
+                cv2.rectangle(now_frame_gray, (x - size, y - size), (x + size, y + size), (0, 255, 0), 2)
         
         prev_keypoints = now_keypoints
         out.write(now_frame_gray)
@@ -123,10 +122,10 @@ def process_video(video_path, output_path, min_radius, max_radius):
     print("Moving objects: ", avg_moving_objects)
     print("Total objects: ", avg_total_objects)
 
-    return num_moving_objects, num_total_objects
+    return avg_moving_objects, avg_total_objects
 
-video_path = 'videos/oview.mp4'
-output_path = 'videos/oview_fir_start_onlymoving12.mp4'
-min_radius = 3.5
-max_radius = 8.5
+video_path = 'videos/9.mp4'
+output_path = 'videos/9_output.mp4'
+min_radius = 3
+max_radius = 7
 moving_objects, total_objects = process_video(video_path, output_path, min_radius, max_radius)
