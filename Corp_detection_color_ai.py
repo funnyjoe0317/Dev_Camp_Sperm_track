@@ -14,6 +14,7 @@ def preprocess_frame(frame, target_width, target_height):
     
     # resized_gray = cv2.resize(center_gray, (target_width, target_height))
     resized_gray = cv2.resize(center_roi, (target_width, target_height))
+    # center_color = center_roi
 
     # equalized_gray = cv2.equalizeHist(resized_gray)
     
@@ -41,7 +42,9 @@ def process_video(video_path, output_path, min_radius, max_radius):
 
     fps = int(cap.get(cv2.CAP_PROP_FPS))
     target_width, target_height = 640, 480
-    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (target_width, target_height), isColor=False)
+    
+    # 여기서 아웃풋 영상의 컬러값을 항상 바꿔주자!!!
+    out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (target_width, target_height), isColor=True)
 
     if not out.isOpened():
         print("Error opening the output video file")
@@ -115,6 +118,10 @@ def process_video(video_path, output_path, min_radius, max_radius):
 
     cap.release()
     out.release()
+    cv2.imshow('Processed Frame', cv2.cvtColor(now_frame_gray, cv2.COLOR_GRAY2BGR))
+    cv2.imshow('Processed Frame', cv2.cvtColor(now_frame_gray, cv2.COLOR_GRAY2BGR))
+
+
 
     num_moving_objects = len(moving_objects)
     num_total_objects = len(total_objects)
@@ -125,8 +132,8 @@ def process_video(video_path, output_path, min_radius, max_radius):
 
     return avg_moving_objects, avg_total_objects
 
-video_path = 'videos/9.mp4'
-output_path = 'videos/9_output.mp4'
+video_path = 'videos/13.mp4'
+output_path = 'videos/13_output.mp4'
 min_radius = 3
 max_radius = 7
 moving_objects, total_objects = process_video(video_path, output_path, min_radius, max_radius)
