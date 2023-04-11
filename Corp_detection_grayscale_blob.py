@@ -5,7 +5,7 @@ def adjust_brightness(img, alpha=1.7, beta=0):
     adjusted_img = cv2.addWeighted(img, alpha, np.zeros(img.shape, img.dtype), 0, beta)
     return adjusted_img
 
-def preprocess_frame(frame, target_width, target_height):
+def preprocess_frame(frame, target_width, target_height, lower_threshold=20, gaussian_blur=(5, 5), alpha=0.8, beta=15):
     height, width = frame.shape[:2]
 
     center_roi = frame[height//3:2*height//3, width//3:2*width//3]
@@ -14,12 +14,19 @@ def preprocess_frame(frame, target_width, target_height):
     
     resized_gray = cv2.resize(center_gray, (target_width, target_height))
     
-    equalized_gray = cv2.equalizeHist(resized_gray)
+    # 가우시안 블러 적용
+    blurred_gray = cv2.GaussianBlur(resized_gray, gaussian_blur, 0)
     
-    adjusted_gray = adjust_brightness(equalized_gray, alpha=2, beta=3)
+    equalized_gray = cv2.equalizeHist(blurred_gray)
+    
+    adjusted_gray = adjust_brightness(equalized_gray, alpha=alpha, beta=beta)
+    
+    # 픽셀 값이 lower_threshold보다 작은 경우 0으로 설정
+    adjusted_gray[adjusted_gray < lower_threshold] = 0
+    
     return adjusted_gray
 
-def is_moving(kp, prev_keypoints, threshold=5):
+def is_moving(kp, prev_keypoints, threshold=2):
     for prev_kp in prev_keypoints:
         dx = abs(prev_kp.pt[0] - kp.pt[0])
         dy = abs(prev_kp.pt[1] - kp.pt[1])
@@ -57,8 +64,8 @@ def process_video(video_path, output_path, min_radius, max_radius):
     params.minCircularity = 0.5
     params.maxCircularity = 1.0
     params.filterByInertia = True
-    params.minInertiaRatio = 0.7
-    params.maxInertiaRatio = 1.0
+    params.minInertiaRatio = 0.5
+    params.maxInertiaRatio = 0.95
 
     detector = cv2.SimpleBlobDetector_create(params)
 
@@ -119,13 +126,17 @@ def process_video(video_path, output_path, min_radius, max_radius):
     num_total_objects = len(total_objects)
     avg_moving_objects = num_moving_objects / frame_count
     avg_total_objects = num_total_objects / frame_count
+    avg_total_objects_37 = ((avg_total_objects/2)*1000)/0.00075
     print("Moving objects: ", avg_moving_objects)
+    print("Moving %: ", (avg_moving_objects/avg_total_objects)*100)
     print("Total objects: ", avg_total_objects)
+    print("Total objects_ALL: ", avg_total_objects_37)
 
     return avg_moving_objects, avg_total_objects
 
-video_path = 'videos/9.mp4'
-output_path = 'videos/9_output.mp4'
-min_radius = 3
+# video_path = 'videos/oview.mp4'
+video_path = 'videos/sungmin.mp4'
+output_path = 'videos/test025.mp4'
+min_radius = 3.5
 max_radius = 7
 moving_objects, total_objects = process_video(video_path, output_path, min_radius, max_radius)
