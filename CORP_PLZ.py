@@ -24,8 +24,31 @@ def emphasize_head(frame, lower_threshold, upper_threshold):
     result = cv2.bitwise_and(frame, frame, mask=mask)
     return result
 
-# ---------------------------- 여기 만져야한다----------------------------
-# ---------------------------- 여기 만져야한다----------------------------
+def create_blob_detector(min_radius, max_radius):
+    params = cv2.SimpleBlobDetector_Params()
+    params.filterByArea = True
+    params.minArea = np.pi * min_radius**2
+    params.maxArea = np.pi * max_radius**2
+    params.minThreshold = 30
+    params.filterByCircularity = True
+    params.minCircularity = 0.3
+    params.maxCircularity = 1.0
+    params.filterByInertia = True
+    params.minInertiaRatio = 0.15
+    params.maxInertiaRatio = 1.0
+    params.filterByConvexity = False
+
+    return cv2.SimpleBlobDetector_create(params)
+
+def is_moving(kp, prev_keypoints, threshold=3):
+    for prev_kp in prev_keypoints:
+        dx = abs(prev_kp.pt[0] - kp.pt[0])
+        dy = abs(prev_kp.pt[1] - kp.pt[1])
+        distance = np.sqrt(dx**2 + dy**2)
+        if distance <= threshold:
+            return False
+    return True
+
 def preprocess_frame(frame, target_width, target_height, apply_brightness_contrast=True, alpha=1, beta=20, enhance=True, 
                      equalize=False, denoise_flag=False, sharpen_flag=True, emphasize_head_flag=True):
     height, width = frame.shape[:2]
@@ -56,34 +79,8 @@ def preprocess_frame(frame, target_width, target_height, apply_brightness_contra
 
     return resized_color
 
-
-def is_moving(kp, prev_keypoints, threshold=5):
-    for prev_kp in prev_keypoints:
-        dx = abs(prev_kp.pt[0] - kp.pt[0])
-        dy = abs(prev_kp.pt[1] - kp.pt[1])
-        distance = np.sqrt(dx**2 + dy**2)
-        if distance <= threshold:
-            return False
-    return True
-
-def create_blob_detector(min_radius, max_radius):
-    params = cv2.SimpleBlobDetector_Params()
-    params.filterByArea = True
-    params.minArea = np.pi * min_radius**2
-    params.maxArea = np.pi * max_radius**2
-    params.minThreshold = 20
-    params.filterByCircularity = True
-    params.minCircularity = 0.05
-    params.maxCircularity = 1.0
-    params.filterByInertia = True
-    params.minInertiaRatio = 0.05
-    params.maxInertiaRatio = 1.0
-
-    return cv2.SimpleBlobDetector_create(params)
-# ---------------------------- 여기 만져야한다----------------------------
-# ---------------------------- 여기 만져야한다----------------------------
 def corp_video_with_blob_detection(video_path, output_path, min_radius, max_radius, apply_brightness_contrast=True, alpha=1, beta=20, 
-                                   enhance=True, equalize=False, denoise_flag=False, sharpen_flag=True):
+                                   enhance=True, equalize=False, denoise_flag=False, sharpen_flag=True, emphasize_head_flag=True):
     if not os.path.exists(video_path):
         print(f"Error: Input video file '{video_path}' does not exist.")
         return
@@ -123,15 +120,13 @@ def corp_video_with_blob_detection(video_path, output_path, min_radius, max_radi
 
         now_keypoints = detector.detect(now_frame)
         moving_kps = [kp for kp in now_keypoints if is_moving(kp, prev_keypoints)]
-        
-        # print(f"Frame {frame_count}: detected {len(now_keypoints)} objects")
-        
+        # 디택션을 잡을 때 일단 다 잡고 나서 그 다음것들을 바운딩 박스로 그려서 그런거같다
         moving_objects.extend(moving_kps)
         total_objects.extend(now_keypoints)
         num_moving_objects += len(moving_kps)
         num_total_objects += len(now_keypoints)
 
-        for kp in moving_kps:
+        for kp in now_keypoints:
             x, y = int(kp.pt[0]), int(kp.pt[1])
             radius = kp.size / 2
 
@@ -156,8 +151,6 @@ def corp_video_with_blob_detection(video_path, output_path, min_radius, max_radi
     if os.path.exists(output_path):
         print("영상 전처리 완료!")
         
-    # num_moving_objects = len(moving_objects)
-    # num_total_objects = len(total_objects)
     avg_moving_objects = num_moving_objects / frame_count
     avg_total_objects = num_total_objects / frame_count
     print("Moving objects: ", avg_moving_objects)
@@ -166,8 +159,10 @@ def corp_video_with_blob_detection(video_path, output_path, min_radius, max_radi
     return avg_moving_objects, avg_total_objects
         
 video_path = 'videos/9.mp4'
-output_path = 'videos/real_last19.mp4'
+output_path = 'videos/real_last29.mp4'
 min_radius = 3
-max_radius = 17
+max_radius = 7
 
 corp_video_with_blob_detection(video_path, output_path, min_radius, max_radius)
+
+
